@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFV-ify | The Guerrilla Slide Generator</title>
+    
+    <!-- Google Fonts for the UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS for the UI aesthetic -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- The Dark Magic: PptxGenJS for client-side PPTX generation -->
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/libs/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+
+    <!-- The Velvet Handcuffs: CodeMirror for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #E2E8F0; }
+        h1, h2, h3, .font-bitter { font-family: 'Bitter', serif; }
+        
+        /* The TFV Brand Colors embedded into the UI */
+        .tfv-blue { background-color: #2A419A; }
+        .tfv-dark-blue { background-color: #141E64; }
+        .tfv-tangerine { background-color: #F58220; }
+        .tfv-yellow { background-color: #FFC543; }
+        
+        .text-tfv-blue { color: #2A419A; }
+        .text-tfv-tangerine { color: #F58220; }
+
+        /* Custom scrollbar for the coding peasant */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        #preview-pane {
+            /* Simulating a 16:9 canvas scaling */
+            container-type: inline-size;
+        }
+
+        /* CodeMirror Overrides for our custom workspace */
+        .CodeMirror {
+            height: 100%;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <header class="tfv-dark-blue text-white p-4 flex justify-between items-center shadow-lg z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 tfv-tangerine rounded flex items-center justify-center font-bitter font-bold text-xl">T</div>
+            <div>
+                <h1 class="text-xl font-bitter font-semibold tracking-wide">TFV-ify <span class="text-xs text-gray-300 font-inter font-normal ml-2">Guerrilla Slide Generator v1.0</span></h1>
+            </div>
+        </div>
+        <div class="flex gap-4">
+            <button id="btn-update" class="px-4 py-2 border border-gray-400 rounded hover:bg-white hover:text-blue-900 transition text-sm font-medium">
+                Update Preview
+            </button>
+            <button id="btn-export" class="tfv-tangerine hover:bg-orange-600 text-white px-6 py-2 rounded shadow transition font-semibold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                </svg>
+                Export to PPTX
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Column: The Code Editor -->
+        <section class="w-1/2 flex flex-col border-r border-gray-300 bg-[#212121]">
+            <div class="bg-gray-100 p-2 border-b border-gray-300 flex justify-between items-center text-sm text-gray-600 font-medium">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    HTML Source Code
+                </span>
+                
+                <!-- The Guerrilla Toolbar -->
+                <div class="flex gap-2">
+                    <button id="btn-tmpl-title" class="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-xs font-semibold transition" title="Insert a centered title slide">
+                        + Title Slide
+                    </button>
+                    <button id="btn-tmpl-split" class="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-xs font-semibold transition" title="Insert the standard Sidebar/Main Stage layout">
+                        + Split Layout
+                    </button>
+                </div>
+            </div>
+            
+            <!-- CodeMirror will take over this textarea -->
+            <div class="flex-1 relative">
+                <textarea id="html-input" class="hidden">
+<!-- 
+  Welcome to your syntax-highlighted cell, Hélène.
+  Use the buttons above to inject TFV-compliant slide templates.
+-->
+<div class="slide" id="slide-typography">
+    <div class="slide-content" style="display: flex; gap: 40px; padding: 40px;">
+        
+        <!-- The Left Column (35% width in PPTX) -->
+        <div class="sidebar">
+            <h1 class="slide-title">2.2 Typography</h1>
+            
+            <h3>Official Font</h3>
+            <p>Hệ thống phông chữ của TFV sẽ bao gồm hai font chính là Bitter và Inter. Cả hai font chữ này đều miễn phí, có bản quyền, dùng được với cả tiếng Anh, tiếng Việt.</p>
+        </div>
+
+        <!-- The Right Column (65% width in PPTX) -->
+        <div class="main-stage">
+            <h2 style="color: #2A419A;">Heading 1 - Bitter Medium</h2>
+            <p style="font-size: 24px; color: #475569; margin-bottom: 20px;">Lorem ipsum dolor sit amet consectetuer adipiscing</p>
+
+            <h2 style="color: #2A419A;">Heading 2 - Inter Semi Bold</h2>
+            <p style="font-size: 18px; color: #475569;">Lorem ipsum dolor sit amet consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna.</p>
+        </div>
+    </div>
+</div>
+                </textarea>
+            </div>
+        </section>
+
+        <!-- Right Column: The Visual Preview -->
+        <section class="w-1/2 bg-slate-200 flex flex-col relative overflow-y-auto p-8 items-center gap-8" id="preview-pane">
+            <!-- Slides will be injected here for preview -->
+        </section>
+
+    </main>
+
+    <!-- Hidden element used for safely parsing the HTML strings into DOM objects -->
+    <div id="virtual-dom" style="display: none;"></div>
+
+    <script>
+        // --- CORE UI LOGIC ---
+        const htmlInput = document.getElementById('html-input');
+        const previewPane = document.getElementById('preview-pane');
+        const virtualDom = document.getElementById('virtual-dom');
+        const btnUpdate = document.getElementById('btn-update');
+        const btnExport = document.getElementById('btn-export');
+
+        // Initialize the Velvet Handcuffs (CodeMirror)
+        const editor = CodeMirror.fromTextArea(htmlInput, {
+            mode: "xml",
+            theme: "material-darker",
+            lineNumbers: true,
+            lineWrapping: true,
+            autoCloseTags: true
+        });
+
+        // Template Injection Logic
+        function injectTemplate(templateString) {
+            const doc = editor.getDoc();
+            const cursor = doc.getCursor();
+            doc.replaceRange(templateString + '\n\n', cursor);
+            editor.focus();
+            updatePreview(); // Immediately show the fruit of our labor
+        }
+
+        document.getElementById('btn-tmpl-title').addEventListener('click', () => {
+            injectTemplate(`<div class="slide">\n    <div class="slide-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">\n        <h1 class="slide-title" style="font-size: 48px; margin-bottom: 10px;">Main Title Here</h1>\n        <p style="color: #475569; font-size: 24px;">A subtle, anthroposophical subtitle</p>\n    </div>\n</div>`);
+        });
+
+        document.getElementById('btn-tmpl-split').addEventListener('click', () => {
+            injectTemplate(`<div class="slide">\n    <div class="slide-content" style="display: flex; gap: 40px; padding: 40px;">\n        <div class="sidebar">\n            <h1 class="slide-title">Section Title</h1>\n            <h3>Key Concept</h3>\n            <p>Your explanation goes here.</p>\n        </div>\n        <div class="main-stage">\n            <h2 style="color: #2A419A;">Elaboration</h2>\n            <p>Details, examples, or visual descriptions.</p>\n        </div>\n    </div>\n</div>`);
+        });
+
+        // Function to render the HTML into the preview pane
+        function updatePreview() {
+            const rawHTML = editor.getValue();
+            virtualDom.innerHTML = rawHTML;
+            
+            previewPane.innerHTML = ''; // Clear current
+            
+            const slides = virtualDom.querySelectorAll('.slide');
+            
+            if(slides.length === 0) {
+                previewPane.innerHTML = '<div class="text-gray-500 mt-20 text-center">No &lt;div class="slide"&gt; found in the HTML.</div>';
+                return;
+            }
+
+            slides.forEach((slide, index) => {
+                // Create a visual card for the preview
+                const card = document.createElement('div');
+                card.className = 'w-full max-w-4xl bg-white shadow-lg border border-gray-200 relative overflow-hidden shrink-0';
+                card.style.aspectRatio = '16/9';
+                
+                // Add a small label
+                const label = document.createElement('div');
+                label.className = 'absolute top-0 left-0 bg-gray-800 text-white text-xs px-2 py-1 rounded-br z-10';
+                label.innerText = `Slide ${index + 1}`;
+                card.appendChild(label);
+
+                // Clone the user's slide content into the visual card
+                const contentWrapper = document.createElement('div');
+                contentWrapper.className = 'w-full h-full p-8';
+                contentWrapper.innerHTML = slide.innerHTML;
+                
+                // Add some basic styling to the preview so it resembles the TFV brand loosely
+                // (Since we don't load the full external CSS here, we inject a style tag for the preview)
+                const style = document.createElement('style');
+                style.innerHTML = `
+                    h1.slide-title { font-family: 'Bitter', serif; font-size: 2.5rem; color: #141E64; font-weight: 600; margin-bottom: 1rem; }
+                    h3 { font-family: 'Inter', sans-serif; font-size: 1.25rem; font-weight: 600; color: #2A419A; margin-top: 1rem; margin-bottom: 0.5rem; }
+                    h2 { font-family: 'Bitter', serif; font-size: 1.5rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem;}
+                    p { font-family: 'Inter', sans-serif; font-size: 1rem; color: #1E293B; margin-bottom: 0.75rem; line-height: 1.6; }
+                    .sidebar { width: 35%; float: left; padding-right: 20px;}
+                    .main-stage { width: 65%; float: left; background: #f8fafc; padding: 20px; border-radius: 8px; height: 100%;}
+                `;
+                contentWrapper.appendChild(style);
+
+                card.appendChild(contentWrapper);
+                previewPane.appendChild(card);
+            });
+        }
+
+        // Initialize preview on load
+        // A slight delay ensures CodeMirror is fully painted before we read from it
+        setTimeout(updatePreview, 100);
+        
+        // Listeners
+        btnUpdate.addEventListener('click', updatePreview);
+        
+        // Auto-update after user stops typing for 1 second
+        let timeout = null;
+        editor.on('change', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(updatePreview, 1000);
+        });
+
+
+        // --- THE ALCHEMY: HTML TO PPTX PARSER ---
+        btnExport.addEventListener('click', () => {
+            
+            // 1. Initialize PptxGenJS
+            let pres = new PptxGenJS();
+            pres.layout = 'LAYOUT_16x9'; // 10 x 5.625 inches
+            pres.author = 'TFV-ify Guerrilla Generator';
+            pres.company = 'Teach For Viet Nam (Unofficial)';
+            pres.title = 'Exported TFV Slides';
+
+            // Constants based on TFV Brand Guidelines
+            const COLORS = {
+                darkBlue: '141E64',
+                blue: '2A419A',
+                tangerine: 'F58220',
+                yellow: 'FFC543',
+                textMain: '1E293B',
+                textMuted: '475569'
+            };
+            
+            // Font mapping (PPTX requires fonts installed on the system, 
+            // so we map Bitter to Georgia and Inter to Arial as safe fallbacks)
+            const FONTS = {
+                serif: 'Georgia',
+                sans: 'Arial'
+            };
+
+            // 2. Parse the DOM
+            const rawHTML = editor.getValue();
+            virtualDom.innerHTML = rawHTML;
+            const slides = virtualDom.querySelectorAll('.slide');
+
+            if(slides.length === 0) {
+                alert("No slides found! Please ensure your HTML has <div class='slide'> elements.");
+                return;
+            }
+
+            // 3. Iterate over each slide in the HTML and map it to a PPTX slide
+            slides.forEach((htmlSlide, index) => {
+                let slide = pres.addSlide();
+                
+                // Set default background (White)
+                slide.background = { color: 'FFFFFF' };
+
+                // Add standard TFV Header (derived from your screenshots)
+                slide.addText("Teach For Viet\nNam", { x: 0.5, y: 0.3, w: 2, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
+                slide.addText("Brand\nGuideline", { x: 3.0, y: 0.3, w: 2, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
+                slide.addText(`${index + 15}`, { x: 9.0, y: 0.3, w: 0.5, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'right' });
+
+
+                // -- SUB-PARSER FOR LEFT COLUMN (.sidebar) --
+                const sidebar = htmlSlide.querySelector('.sidebar');
+                if (sidebar) {
+                    let currentY = 1.0; // Start an inch from the top
+                    
+                    // Title
+                    const title = sidebar.querySelector('h1.slide-title');
+                    if (title) {
+                        slide.addText(title.innerText, { 
+                            x: 0.5, y: currentY, w: 3.5, h: 0.8, 
+                            fontSize: 32, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue 
+                        });
+                        currentY += 1.0;
+                    }
+
+                    // Loop through the rest of the sidebar elements
+                    const elements = sidebar.querySelectorAll('h3, p');
+                    elements.forEach(el => {
+                        if (el.tagName.toLowerCase() === 'h3') {
+                            slide.addText(el.innerText, { 
+                                x: 0.5, y: currentY, w: 3.5, h: 0.4, 
+                                fontSize: 14, fontFace: FONTS.sans, bold: true, color: COLORS.textMain 
+                            });
+                            currentY += 0.4;
+                        } else if (el.tagName.toLowerCase() === 'p') {
+                            // Estimate text height based on string length (crude but works for a demo)
+                            let hEst = Math.max(0.4, (el.innerText.length / 50) * 0.25); 
+                            slide.addText(el.innerText, { 
+                                x: 0.5, y: currentY, w: 3.0, h: hEst, 
+                                fontSize: 12, fontFace: FONTS.sans, color: COLORS.textMain, lineSpacing: 18 
+                            });
+                            currentY += hEst + 0.1;
+                        }
+                    });
+                }
+
+                // -- SUB-PARSER FOR RIGHT COLUMN (.main-stage) --
+                const mainStage = htmlSlide.querySelector('.main-stage');
+                if (mainStage) {
+                    // Add the grey-ish background box
+                    slide.addShape(pres.ShapeType.rect, { 
+                        x: 4.0, y: 0.8, w: 5.5, h: 4.5, 
+                        fill: { color: 'E2E8F0' }, // Light gray blue
+                        line: { type: 'none' }
+                    });
+
+                    let currentY = 1.2;
+                    
+                    const elements = mainStage.querySelectorAll('h2, p');
+                    elements.forEach(el => {
+                        if (el.tagName.toLowerCase() === 'h2') {
+                            slide.addText(el.innerText, { 
+                                x: 4.5, y: currentY, w: 4.5, h: 0.5, 
+                                fontSize: 24, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue 
+                            });
+                            currentY += 0.6;
+                        } else if (el.tagName.toLowerCase() === 'p') {
+                            let hEst = Math.max(0.4, (el.innerText.length / 50) * 0.25);
+                            slide.addText(el.innerText, { 
+                                x: 4.5, y: currentY, w: 4.5, h: hEst, 
+                                fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMuted 
+                            });
+                            currentY += hEst + 0.3;
+                        }
+                    });
+                }
+            });
+
+            // 4. Forge the file and trigger download
+            // The file name will be automatically generated with a timestamp
+            pres.writeFile({ fileName: `TFV_Export_${new Date().getTime()}.pptx` })
+                .then(fileName => {
+                    console.log(`Successfully exported: ${fileName}`);
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Error exporting PPTX. Check the console, mon ami.");
+                });
+        });
+    </script>
+</body>
+</html>
