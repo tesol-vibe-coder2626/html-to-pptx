@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TFV-ify | The Guerrilla Slide Generator v3.0</title>
+    <title>TFV-ify | The Dictator Engine v4.0</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,18 +28,16 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
         .CodeMirror { height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 14px; padding-top: 10px; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <!-- Navbar -->
     <header class="tfv-dark-blue text-white p-4 flex justify-between items-center shadow-lg z-10">
         <div class="flex items-center gap-3">
             <div class="w-8 h-8 tfv-tangerine rounded flex items-center justify-center font-serif font-bold text-xl">T</div>
             <div>
-                <h1 class="text-xl font-serif font-semibold tracking-wide">TFV-ify <span class="text-xs text-gray-300 font-sans font-normal ml-2">Ironclad Sandbox v3.0</span></h1>
+                <h1 class="text-xl font-serif font-semibold tracking-wide">TFV-ify <span class="text-xs text-gray-300 font-sans font-normal ml-2">The Dictator v4.0</span></h1>
             </div>
         </div>
         <div class="flex gap-4">
@@ -51,20 +49,16 @@
         </div>
     </header>
 
-    <!-- Main Workspace -->
     <main class="flex-1 flex overflow-hidden">
-        
-        <!-- Left Column: The Code Editor -->
         <section class="w-1/2 flex flex-col border-r border-gray-300 bg-[#212121]">
             <div class="bg-gray-100 p-2 border-b border-gray-300 flex justify-between items-center text-sm text-gray-600 font-medium">
-                <span class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg> HTML Source Code</span>
+                <span class="flex items-center gap-2">HTML Source Code</span>
             </div>
             <div class="flex-1 relative">
-                <textarea id="html-input" class="hidden"><!-- Paste your full HTML file here --></textarea>
+                <textarea id="html-input" class="hidden"></textarea>
             </div>
         </section>
 
-        <!-- Right Column: The Ironclad iframe Preview -->
         <section class="w-1/2 bg-slate-200 relative p-0 m-0" id="preview-pane">
             <iframe id="preview-frame" class="w-full h-full border-0 bg-white shadow-inner"></iframe>
         </section>
@@ -80,11 +74,25 @@
             mode: "xml", theme: "material-darker", lineNumbers: true, lineWrapping: true, autoCloseTags: true
         });
 
-        // The Sandbox Renderer: Using an iframe prevents your CSS from destroying the app
+        editor.on('paste', (cm, event) => {
+            const pastedText = (event.clipboardData || window.clipboardData).getData('text');
+            if (pastedText && pastedText.length > 500) {
+                setTimeout(() => { cm.scrollTo(0, 0); cm.setCursor(0, 0); }, 10);
+            }
+        });
+
         function updatePreview() {
             const doc = previewFrame.contentWindow.document;
             doc.open();
             doc.write(editor.getValue());
+            doc.write(`
+                <style>
+                    body { zoom: calc(100vw / 1350) !important; margin: 0; }
+                    @-moz-document url-prefix() {
+                        body { transform: scale(calc(100vw / 1350)); transform-origin: top center; overflow-x: hidden; }
+                    }
+                </style>
+            `);
             doc.close();
         }
 
@@ -92,42 +100,30 @@
         btnUpdate.addEventListener('click', updatePreview);
         editor.on('change', () => { setTimeout(updatePreview, 1000); });
 
-        // --- THE ALCHEMY v3.0: SURGICAL PARSER ---
+        // --- THE DICTATOR: EXPLICIT PPTX COORDINATES ---
         btnExport.addEventListener('click', () => {
             let pres = new PptxGenJS();
-            
-            // FIX 1: Align coordinates exactly with the Python script (13.33 x 7.5)
             pres.defineLayout({ name: 'TFV_WIDE', width: 13.33, height: 7.5 });
             pres.layout = 'TFV_WIDE'; 
-            pres.author = 'TFV-ify Bespoke Engine';
+            pres.author = 'TFV-ify Dictator Engine';
 
             const COLORS = {
                 darkBlue: '141E64', blue: '2A419A', tangerine: 'F58220', yellow: 'FFC543',
-                bgLight: 'F8FAFC', textMain: '1E293B', textMuted: '475569', white: 'FFFFFF'
+                bgLight: 'F8FAFC', textMain: '1E293B', textMuted: '475569', white: 'FFFFFF', gray: 'CBD5E1'
             };
             const FONTS = { serif: 'Georgia', sans: 'Arial' };
 
-            // FIX 2: Use DOMParser to prevent CSS leaking during extraction
             const parser = new DOMParser();
             const virtualDom = parser.parseFromString(editor.getValue(), 'text/html');
-            const slides = virtualDom.querySelectorAll('.slide, .slide-container');
+            const slides = virtualDom.querySelectorAll('.slide-container');
 
-            if(slides.length === 0) return alert("No slides found in the HTML!");
+            if(slides.length === 0) return alert("No <div class='slide-container'> found!");
 
             slides.forEach((htmlSlide, index) => {
                 let slide = pres.addSlide();
                 
-                // Header (Skip for Title/Break slides later)
-                const isTitleLayout = htmlSlide.querySelector('.title-layout') !== null;
-                const isSectionBreak = htmlSlide.querySelector('.section-title-layout') !== null;
-
-                if (!isTitleLayout && !isSectionBreak) {
-                    slide.addText("Teach For Viet\nNam", { x: 0.5, y: 0.3, w: 2, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
-                    slide.addText("Brand\nGuideline", { x: 3.0, y: 0.3, w: 2, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
-                    slide.addText(`${index + 1}`, { x: 12.0, y: 0.3, w: 0.5, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'right' });
-                }
-
-                if (isTitleLayout) {
+                // --- SLIDE 1: TITLE ---
+                if (htmlSlide.querySelector('.title-layout')) {
                     slide.background = { color: COLORS.darkBlue };
                     let title = htmlSlide.querySelector('h1')?.innerText || '';
                     let sub = htmlSlide.querySelector('.subtitle')?.innerText || '';
@@ -136,7 +132,8 @@
                     return;
                 }
                 
-                if (isSectionBreak) {
+                // --- SLIDE 11: BREAK ---
+                if (htmlSlide.querySelector('.section-title-layout')) {
                     slide.background = { color: COLORS.blue };
                     let title = htmlSlide.querySelector('h2')?.innerText || '';
                     let sub = htmlSlide.querySelector('p')?.innerText || '';
@@ -147,108 +144,183 @@
 
                 slide.background = { color: COLORS.white };
                 
-                let slideTitle = htmlSlide.querySelector('.slide-title');
-                if (slideTitle) {
-                    let titleText = slideTitle.innerText;
-                    slide.addText(titleText, { x: 0.6, y: 0.4, w: 12, h: 1, fontSize: 36, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue });
-                    slide.addShape(pres.ShapeType.rect, { x: 0.6, y: 1.3, w: 12, h: 0.04, fill: { color: COLORS.yellow } });
+                // --- COMMON HEADER ---
+                let titleEl = htmlSlide.querySelector('.slide-title');
+                if (titleEl) {
+                    // Remove nested spans/icons text if any
+                    let titleText = Array.from(titleEl.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim();
+                    if (!titleText) titleText = titleEl.innerText;
+                    
+                    if(htmlSlide.id !== 'slide15') { // Slide 15 title is centered differently
+                        slide.addText(titleText, { x: 0.6, y: 0.4, w: 12, h: 1, fontSize: 36, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue });
+                        slide.addShape(pres.ShapeType.rect, { x: 0.6, y: 1.3, w: 12, h: 0.04, fill: { color: COLORS.yellow } });
+                    }
                 }
 
-                // FIX 3: Robust Layout Extraction
-                let tiledColumns = htmlSlide.querySelector('.two-column.tiled');
-                if (tiledColumns) {
-                    let cols = Array.from(tiledColumns.children).filter(c => c.tagName.toLowerCase() === 'div');
-                    cols.forEach((col, i) => {
-                        let xBase = i === 0 ? 0.8 : 7.0;
-                        slide.addShape(pres.ShapeType.roundRect, { x: xBase, y: 1.8, w: 5.5, h: 4.8, fill: { color: COLORS.bgLight }, line: { color: i===0?COLORS.blue:COLORS.yellow, width: 4 } });
-                        
-                        let curY = 2.1;
-                        Array.from(col.children).forEach(el => {
-                            let text = el.innerText.trim();
-                            let tag = el.tagName.toLowerCase();
-                            if(!text && tag !== 'ul') return;
-
-                            if (tag === 'h3') {
-                                slide.addText(text, { x: xBase+0.4, y: curY, w: 4.7, h: 0.5, fontSize: 22, fontFace: FONTS.serif, bold: true, color: COLORS.blue, valign: 'top' });
-                                curY += 0.6;
-                            } else if (tag === 'p') {
-                                let ht = Math.max(0.4, (text.length/40)*0.2);
-                                slide.addText(text, { x: xBase+0.4, y: curY, w: 4.7, h: ht, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMain, valign: 'top' });
-                                curY += ht + 0.1;
-                            } else if (tag === 'ul' || tag === 'ol') {
-                                // FIX 4: Group list items so Google Slides doesn't panic and stack them
-                                let lis = Array.from(el.querySelectorAll('li'));
-                                let listItems = lis.map(li => ({ text: li.innerText.trim() + '\n', options: { bullet: true, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMain } }));
-                                let ht = Math.max(0.5, lis.length * 0.4);
-                                slide.addText(listItems, { x: xBase+0.5, y: curY, w: 4.6, h: ht, valign: 'top' });
-                                curY += ht + 0.1;
-                            }
-                        });
+                // --- SLIDE 2: ICEBREAKER ---
+                if (htmlSlide.id === 'slide2' || htmlSlide.querySelector('.six-grid')) {
+                    let prompt = htmlSlide.querySelector('h3')?.innerText || "";
+                    slide.addText(prompt, { x: 1, y: 1.6, w: 11.33, h: 0.8, fontSize: 24, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'center' });
+                    
+                    let gridItems = htmlSlide.querySelectorAll('.image-tile p');
+                    let startX = 1.5, startY = 2.5, spX = 3.6, spY = 2.4;
+                    gridItems.forEach((p, i) => {
+                        let c = i % 3, r = Math.floor(i / 3);
+                        let x = startX + (c * spX), y = startY + (r * spY);
+                        // Draw gray placeholder instead of image to prevent cross-origin taint issues
+                        slide.addShape(pres.ShapeType.rect, { x: x, y: y, w: 3, h: 1.8, fill: { color: 'E2E8F0' } });
+                        slide.addText(p.innerText, { x: x, y: y + 1.85, w: 3, h: 0.4, fontSize: 16, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'center' });
                     });
                     return;
                 }
 
-                let modelLayout = htmlSlide.querySelector('.model-text-layout');
-                if (modelLayout) {
+                // --- SLIDE 3, 5, 14: TWO COLUMN TILED ---
+                if (htmlSlide.querySelector('.two-column.tiled')) {
+                    let cols = htmlSlide.querySelectorAll('.two-column.tiled > div');
+                    let xPositions = [0.8, 7.0];
+                    cols.forEach((col, i) => {
+                        let x = xPositions[i];
+                        slide.addShape(pres.ShapeType.roundRect, { x: x, y: 1.8, w: 5.5, h: 4.8, fill: { color: COLORS.bgLight }, line: { color: i===0?COLORS.blue:COLORS.yellow, width: 4 } });
+                        
+                        let y = 2.1;
+                        // Grab elements specifically to avoid mushing
+                        let headers = col.querySelectorAll('h3');
+                        let paras = col.querySelectorAll('p');
+                        let uls = col.querySelectorAll('ul');
+                        
+                        if (headers.length > 0) {
+                            headers.forEach((h, idx) => {
+                                slide.addText(h.innerText, { x: x+0.4, y: y, w: 4.7, h: 0.5, fontSize: 24, fontFace: FONTS.serif, bold: true, color: COLORS.blue });
+                                y += 0.6;
+                                if (paras[idx]) {
+                                    let pText = paras[idx].innerText.replace(/\n/g, ' ');
+                                    slide.addText(pText, { x: x+0.4, y: y, w: 4.7, h: 0.8, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
+                                    y += 0.9;
+                                }
+                            });
+                        }
+                        
+                        if (uls.length > 0) {
+                            let listItems = Array.from(uls[0].querySelectorAll('li')).map(li => ({
+                                text: li.innerText.replace(/[\n\r]+/g, ' ').trim() + '\n',
+                                options: { bullet: true, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain }
+                            }));
+                            slide.addText(listItems, { x: x+0.4, y: y, w: 4.7, h: 2.5, valign: 'top' });
+                        }
+                    });
+                    return;
+                }
+
+                // --- SLIDE 4: ELICITATION ---
+                if (htmlSlide.id === 'slide4' || (htmlSlide.querySelector('.elicitation-layout') && htmlSlide.id !== 'slide15')) {
+                    let h1 = htmlSlide.querySelector('h1')?.innerText || '';
+                    let sub = htmlSlide.querySelector('.subtitle-box')?.innerText || '';
+                    slide.addText(h1, { x: 1, y: 2.5, w: 11.33, h: 1, fontSize: 55, fontFace: FONTS.sans, color: COLORS.textMain, align: 'center' });
+                    slide.addShape(pres.ShapeType.rect, { x: 2, y: 3.8, w: 9.33, h: 1.5, fill: { type: 'none' }, line: { color: COLORS.gray, width: 2, dashType: 'dash' } });
+                    slide.addText(sub, { x: 2, y: 4.3, w: 9.33, h: 1, fontSize: 24, fontFace: FONTS.sans, color: COLORS.textMuted, align: 'center' });
+                    return;
+                }
+
+                // --- SLIDE 6: GIST READING (MCQ) ---
+                if (htmlSlide.querySelector('.mcq-options')) {
+                    let h3 = htmlSlide.querySelector('h3')?.innerText || '';
+                    let p = htmlSlide.querySelector('p')?.innerText || '';
+                    slide.addText(h3, { x: 1, y: 1.8, w: 11.33, h: 0.8, fontSize: 28, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'center' });
+                    slide.addText(p, { x: 1, y: 2.4, w: 11.33, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.tangerine, bold: true, align: 'center' });
+                    
+                    let opts = htmlSlide.querySelectorAll('.mcq-option');
+                    let yPos = [3.2, 4.3, 5.4];
+                    opts.forEach((opt, i) => {
+                        let y = yPos[i];
+                        let letter = opt.querySelector('.letter')?.innerText || '';
+                        let text = opt.lastElementChild?.innerText || '';
+                        
+                        slide.addShape(pres.ShapeType.roundRect, { x: 2.0, y: y, w: 9.33, h: 0.9, fill: { color: COLORS.bgLight }, line: { color: 'E2E8F0', width: 2 } });
+                        slide.addShape(pres.ShapeType.oval, { x: 2.3, y: y + 0.15, w: 0.6, h: 0.6, fill: { color: COLORS.white } });
+                        slide.addText(letter, { x: 2.3, y: y + 0.15, w: 0.6, h: 0.6, fontSize: 20, fontFace: FONTS.serif, bold: true, color: COLORS.tangerine, align: 'center' });
+                        slide.addText(text, { x: 3.2, y: y + 0.25, w: 8.0, h: 0.5, fontSize: 20, fontFace: FONTS.sans, color: COLORS.textMain });
+                    });
+                    return;
+                }
+
+                // --- SLIDE 7: TFNG INSTRUCTIONS ---
+                if (htmlSlide.id === 'slide7' || htmlSlide.querySelector('.highlight-numbers-layout')) {
+                    slide.addText("⚖️", { x: 1.5, y: 2.5, w: 3, h: 3, fontSize: 100, fontFace: FONTS.sans, align: 'center' });
+                    slide.addText("TRUE", { x: 5, y: 2.0, w: 7, h: 0.5, fontSize: 22, fontFace: FONTS.sans, bold: true, color: '10B981' });
+                    slide.addText("The text gives the same idea as the statement.", { x: 5, y: 2.4, w: 7, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
+                    slide.addText("FALSE", { x: 5, y: 3.5, w: 7, h: 0.5, fontSize: 22, fontFace: FONTS.sans, bold: true, color: 'EF4444' });
+                    slide.addText("The text gives the opposite idea to the statement.", { x: 5, y: 3.9, w: 7, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
+                    slide.addText("NOT GIVEN", { x: 5, y: 5.0, w: 7, h: 0.5, fontSize: 22, fontFace: FONTS.sans, bold: true, color: '64748B' });
+                    slide.addText("The information in the statement is not stated in the text.", { x: 5, y: 5.4, w: 7, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
+                    return;
+                }
+
+                // --- SLIDE 13: MODEL TEXT ---
+                if (htmlSlide.id === 'slide13' || htmlSlide.querySelector('.model-text-layout')) {
                     slide.addText("Model text", { x: 0.5, y: 1.8, w: 3.5, h: 0.8, fontSize: 40, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue });
                     slide.addText("Read the output model.\n\nIndividual • 3 min • Notice", { x: 0.5, y: 2.8, w: 3.5, h: 1, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMuted });
-                    slide.addShape(pres.ShapeType.roundRect, { x: 4.0, y: 1.5, w: 8.5, h: 5.5, fill: { color: 'EEF2F6' }, line: { type: 'none' } });
+                    slide.addShape(pres.ShapeType.roundRect, { x: 4.0, y: 1.0, w: 8.5, h: 6.0, fill: { color: 'EEF2F6' } });
                     
-                    let pText = modelLayout.querySelector('.model-text-content div p')?.innerText || "";
-                    slide.addText(pText, { x: 4.5, y: 1.8, w: 7.5, h: 3.0, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain, lineSpacing: 24 });
+                    let pText = htmlSlide.querySelector('.model-text-content div p')?.innerText || "";
+                    slide.addText(pText, { x: 4.5, y: 1.3, w: 7.5, h: 3.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain, lineSpacing: 24 });
                     
-                    let qText = Array.from(modelLayout.querySelectorAll('.model-text-questions p')).map(p=>p.innerText).join('\n');
+                    let qText = Array.from(htmlSlide.querySelectorAll('.model-text-questions p')).map(p=>p.innerText).join('\n');
                     slide.addText(qText, { x: 4.5, y: 5.0, w: 7.5, h: 1.5, fontSize: 16, fontFace: FONTS.sans, color: COLORS.darkBlue, bold: true });
                     return;
                 }
 
-                // Fallback for linear content
-                let currentY = 1.8;
-                let isCentered = htmlSlide.querySelector('.elicitation-layout, .mcq-options, .highlight-numbers-layout') !== null || htmlSlide.id === 'slide9' || htmlSlide.id === 'slide12' || htmlSlide.id === 'slide8';
-                
-                const elements = Array.from(htmlSlide.querySelectorAll('h1, h2:not(.slide-title), h3, p, ul, .mcq-option'));
-                
-                elements.forEach(el => {
-                    let text = el.innerText.trim();
-                    let tag = el.tagName.toLowerCase();
-                    let alignOpt = isCentered ? 'center' : 'left';
-                    let xPos = isCentered ? 1.0 : 1.5;
-                    let wSize = isCentered ? 11.33 : 10.33;
-                    if(!text && tag !== 'ul') return;
-
-                    if (el.classList.contains('mcq-option')) {
-                        slide.addShape(pres.ShapeType.roundRect, { x: 2.0, y: currentY, w: 9.33, h: 0.9, fill: { color: COLORS.bgLight }, line: { color: 'E2E8F0', width: 2 } });
-                        let letter = el.querySelector('.letter')?.innerText || 'A';
-                        let optText = el.lastElementChild?.innerText || text;
-                        slide.addShape(pres.ShapeType.oval, { x: 2.3, y: currentY + 0.15, w: 0.6, h: 0.6, fill: { color: 'FFFFFF' } });
-                        slide.addText(letter, { x: 2.3, y: currentY + 0.15, w: 0.6, h: 0.6, fontSize: 20, fontFace: FONTS.serif, bold: true, color: COLORS.tangerine, align: 'center' });
-                        slide.addText(optText, { x: 3.2, y: currentY + 0.25, w: 8.0, h: 0.5, fontSize: 20, fontFace: FONTS.sans, color: COLORS.textMain });
-                        currentY += 1.1;
-                        return;
+                // --- SLIDE 15: HOMEWORK ---
+                if (htmlSlide.id === 'slide15') {
+                    let title = htmlSlide.querySelector('h2')?.innerText || '';
+                    let sub = htmlSlide.querySelector('.elicitation-layout > p')?.innerText || '';
+                    slide.addText(title, { x: 1, y: 1.0, w: 11.33, h: 0.8, fontSize: 40, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue, align: 'center' });
+                    slide.addText(sub, { x: 1, y: 1.8, w: 11.33, h: 0.6, fontSize: 22, fontFace: FONTS.sans, bold: true, color: COLORS.blue, align: 'center' });
+                    
+                    slide.addShape(pres.ShapeType.roundRect, { x: 2, y: 3.0, w: 9.33, h: 3.5, fill: { color: COLORS.bgLight } });
+                    slide.addShape(pres.ShapeType.rect, { x: 2, y: 3.0, w: 0.1, h: 3.5, fill: { color: COLORS.tangerine } });
+                    
+                    slide.addText("Homework Task:", { x: 2.5, y: 3.4, w: 8, h: 0.5, fontSize: 20, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
+                    
+                    let hwDesc = htmlSlide.querySelectorAll('.elicitation-layout div p');
+                    if (hwDesc.length >= 2) {
+                        slide.addText(hwDesc[0].innerText, { x: 2.5, y: 4.0, w: 8, h: 1.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
+                        slide.addText(hwDesc[1].innerText, { x: 2.5, y: 5.5, w: 8, h: 0.5, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMuted });
                     }
+                    return;
+                }
 
-                    if (tag === 'h1' || tag === 'h2') {
-                        slide.addText(text, { x: xPos, y: currentY, w: wSize, h: 1.0, fontSize: 40, fontFace: FONTS.serif, bold: true, color: COLORS.blue, align: alignOpt });
-                        currentY += 1.0;
-                    } else if (tag === 'h3') {
-                        slide.addText(text, { x: xPos, y: currentY, w: wSize, h: 0.6, fontSize: 24, fontFace: FONTS.sans, bold: true, color: COLORS.darkBlue, align: alignOpt });
-                        currentY += 0.7;
-                    } else if (tag === 'p') {
-                        let hEst = Math.max(0.4, (text.length / 80) * 0.25);
-                        let isOrange = el.style?.color?.includes('var(--tfv-tangerine)') || false;
-                        slide.addText(text, { x: xPos, y: currentY, w: wSize, h: hEst, fontSize: 20, fontFace: FONTS.sans, color: isOrange ? COLORS.tangerine : COLORS.textMain, align: alignOpt });
-                        currentY += hEst + 0.2;
-                    } else if (tag === 'ul') {
-                        let lis = Array.from(el.querySelectorAll('li'));
-                        let listItems = lis.map(li => ({ text: li.innerText.trim() + '\n', options: { bullet: true, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain } }));
-                        let hEst = Math.max(0.5, lis.length * 0.4);
-                        slide.addText(listItems, { x: xPos + 0.5, y: currentY, w: wSize - 0.5, h: hEst, valign: 'top' });
-                        currentY += hEst + 0.1;
-                    }
+                // --- FALLBACK (Slide 8, 9, 10, 12) ---
+                let curY = 2.5;
+                let isCentered = htmlSlide.id === 'slide8' || htmlSlide.id === 'slide9' || htmlSlide.id === 'slide12';
+                let alignOpt = isCentered ? 'center' : 'left';
+                let xPos = isCentered ? 1.0 : 1.5;
+                let wSize = isCentered ? 11.33 : 10.33;
+
+                let headers = htmlSlide.querySelectorAll('h3');
+                if (headers.length > 0) {
+                    slide.addText(headers[0].innerText, { x: xPos, y: curY, w: wSize, h: 0.8, fontSize: 32, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: alignOpt });
+                    curY += 1.0;
+                }
+
+                let paras = htmlSlide.querySelectorAll('.content-area > div > p');
+                paras.forEach(p => {
+                    let isOrange = p.style?.color?.includes('tangerine') || false;
+                    let pText = p.innerText.replace(/\n/g, ' ');
+                    slide.addText(pText, { x: xPos, y: curY, w: wSize, h: 1.0, fontSize: 22, fontFace: FONTS.sans, color: isOrange ? COLORS.tangerine : COLORS.textMain, bold: isOrange, align: alignOpt });
+                    curY += 1.2;
                 });
+
+                let uls = htmlSlide.querySelectorAll('.content-area ul');
+                if (uls.length > 0) {
+                    let listItems = Array.from(uls[0].querySelectorAll('li')).map(li => ({
+                        text: li.innerText.replace(/[\n\r]+/g, ' ').trim() + '\n',
+                        options: { bullet: true, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain }
+                    }));
+                    slide.addText(listItems, { x: xPos + 0.5, y: curY - 0.5, w: wSize - 0.5, h: 3.0, valign: 'top' });
+                }
             });
 
-            pres.writeFile({ fileName: `TFV_Export_Ironclad_${new Date().getTime()}.pptx` })
+            pres.writeFile({ fileName: `TFV_Export_Flawless_${new Date().getTime()}.pptx` })
                 .then(fileName => { console.log(`Successfully exported: ${fileName}`); })
                 .catch(err => { alert("Error exporting PPTX."); });
         });
