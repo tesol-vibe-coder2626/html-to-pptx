@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TFV-ify | The Dictator Engine v4.0</title>
+    <title>TFV-ify | The Universal Engine v5.0</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,6 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #E2E8F0; }
-        .tfv-blue { background-color: #2A419A; }
         .tfv-dark-blue { background-color: #141E64; }
         .tfv-tangerine { background-color: #F58220; }
         
@@ -28,19 +27,47 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
         .CodeMirror { height: 100%; font-family: 'Courier New', Courier, monospace; font-size: 14px; padding-top: 10px; }
+
+        /* The Preview Container Mechanics */
+        #preview-wrapper {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px;
+            background-color: #cbd5e1;
+            position: relative;
+        }
+
+        /* This container scales visually via JS zoom controls */
+        #iframe-scaler {
+            transform-origin: top center;
+            transition: transform 0.2s ease-out;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            background: white;
+            /* 1280x720 is exactly 13.33 x 7.5 inches at 96 DPI */
+            width: 1280px; 
+            min-height: 720px; 
+        }
+
+        iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <header class="tfv-dark-blue text-white p-4 flex justify-between items-center shadow-lg z-10">
+    <header class="tfv-dark-blue text-white p-4 flex justify-between items-center shadow-lg z-20">
         <div class="flex items-center gap-3">
             <div class="w-8 h-8 tfv-tangerine rounded flex items-center justify-center font-serif font-bold text-xl">T</div>
             <div>
-                <h1 class="text-xl font-serif font-semibold tracking-wide">TFV-ify <span class="text-xs text-gray-300 font-sans font-normal ml-2">The Dictator v4.0</span></h1>
+                <h1 class="text-xl font-serif font-semibold tracking-wide">TFV-ify <span class="text-xs text-gray-300 font-sans font-normal ml-2">Universal Geometric Engine v5.0</span></h1>
             </div>
         </div>
-        <div class="flex gap-4">
+        <div class="flex gap-4 items-center">
+            <span id="export-status" class="text-sm text-yellow-300 font-medium hidden">Forging PPTX...</span>
             <button id="btn-update" class="px-4 py-2 border border-gray-400 rounded hover:bg-white hover:text-blue-900 transition text-sm font-medium">Update Preview</button>
             <button id="btn-export" class="tfv-tangerine hover:bg-orange-600 text-white px-6 py-2 rounded shadow transition font-semibold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
@@ -50,7 +77,8 @@
     </header>
 
     <main class="flex-1 flex overflow-hidden">
-        <section class="w-1/2 flex flex-col border-r border-gray-300 bg-[#212121]">
+        <!-- Editor -->
+        <section class="w-1/2 flex flex-col border-r border-gray-400 bg-[#212121] z-10 shadow-xl">
             <div class="bg-gray-100 p-2 border-b border-gray-300 flex justify-between items-center text-sm text-gray-600 font-medium">
                 <span class="flex items-center gap-2">HTML Source Code</span>
             </div>
@@ -59,21 +87,45 @@
             </div>
         </section>
 
-        <section class="w-1/2 bg-slate-200 relative p-0 m-0" id="preview-pane">
-            <iframe id="preview-frame" class="w-full h-full border-0 bg-white shadow-inner"></iframe>
+        <!-- Preview Pane -->
+        <section class="w-1/2 flex flex-col relative bg-slate-300">
+            
+            <!-- The Zoom Toolbar -->
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg flex gap-4 items-center z-20 opacity-90 hover:opacity-100 transition">
+                <button id="btn-zoom-out" class="hover:text-orange-400 font-bold px-2">-</button>
+                <span id="zoom-label" class="text-sm font-mono w-12 text-center">50%</span>
+                <button id="btn-zoom-in" class="hover:text-orange-400 font-bold px-2">+</button>
+                <div class="w-px h-4 bg-gray-500 mx-1"></div>
+                <button id="btn-zoom-fit" class="hover:text-orange-400 text-xs font-semibold px-2">FIT</button>
+            </div>
+
+            <!-- The Scalable Preview -->
+            <div id="preview-wrapper">
+                <div id="iframe-scaler">
+                    <iframe id="preview-frame" scrolling="no"></iframe>
+                </div>
+            </div>
         </section>
     </main>
 
     <script>
+        // --- UI & EDITOR LOGIC ---
         const htmlInput = document.getElementById('html-input');
         const btnUpdate = document.getElementById('btn-update');
         const btnExport = document.getElementById('btn-export');
+        const exportStatus = document.getElementById('export-status');
         const previewFrame = document.getElementById('preview-frame');
+        const iframeScaler = document.getElementById('iframe-scaler');
+        const previewWrapper = document.getElementById('preview-wrapper');
+        const zoomLabel = document.getElementById('zoom-label');
+
+        let currentZoom = 0.5;
 
         const editor = CodeMirror.fromTextArea(htmlInput, {
             mode: "xml", theme: "material-darker", lineNumbers: true, lineWrapping: true, autoCloseTags: true
         });
 
+        // Anti-abyss pasting
         editor.on('paste', (cm, event) => {
             const pastedText = (event.clipboardData || window.clipboardData).getData('text');
             if (pastedText && pastedText.length > 500) {
@@ -81,248 +133,203 @@
             }
         });
 
+        // --- ZOOM CONTROLS ---
+        function applyZoom() {
+            iframeScaler.style.transform = `scale(${currentZoom})`;
+            zoomLabel.innerText = Math.round(currentZoom * 100) + '%';
+        }
+
+        document.getElementById('btn-zoom-in').onclick = () => { currentZoom = Math.min(1.5, currentZoom + 0.1); applyZoom(); };
+        document.getElementById('btn-zoom-out').onclick = () => { currentZoom = Math.max(0.2, currentZoom - 0.1); applyZoom(); };
+        document.getElementById('btn-zoom-fit').onclick = () => { 
+            // Calculate scale based on container width minus some padding
+            const wrapperWidth = previewWrapper.clientWidth - 80;
+            currentZoom = Math.min(1.0, wrapperWidth / 1280);
+            applyZoom(); 
+        };
+
+        // --- RENDERER ---
         function updatePreview() {
             const doc = previewFrame.contentWindow.document;
             doc.open();
-            doc.write(editor.getValue());
-            doc.write(`
-                <style>
-                    body { zoom: calc(100vw / 1350) !important; margin: 0; }
-                    @-moz-document url-prefix() {
-                        body { transform: scale(calc(100vw / 1350)); transform-origin: top center; overflow-x: hidden; }
-                    }
-                </style>
-            `);
+            // We inject the HTML. The iframe naturally renders it at true 1:1 scale (1280px wide).
+            // We strip any massive body height CSS just to prevent iframe scrolling weirdness
+            let rawCode = editor.getValue().replace(/min-height:\s*100vh;/g, '');
+            doc.write(rawCode);
             doc.close();
+
+            // Auto-adjust iframe height to match content so we can scroll the wrapper, not the iframe
+            setTimeout(() => {
+                const body = previewFrame.contentWindow.document.body;
+                const html = previewFrame.contentWindow.document.documentElement;
+                const height = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight);
+                iframeScaler.style.height = height + 'px';
+                // Trigger fit on first load
+                if(zoomLabel.innerText === '50%') document.getElementById('btn-zoom-fit').click();
+            }, 300);
         }
 
         setTimeout(updatePreview, 100);
         btnUpdate.addEventListener('click', updatePreview);
-        editor.on('change', () => { setTimeout(updatePreview, 1000); });
+        editor.on('change', () => { setTimeout(updatePreview, 1500); });
 
-        // --- THE DICTATOR: EXPLICIT PPTX COORDINATES ---
-        btnExport.addEventListener('click', () => {
-            let pres = new PptxGenJS();
-            pres.defineLayout({ name: 'TFV_WIDE', width: 13.33, height: 7.5 });
-            pres.layout = 'TFV_WIDE'; 
-            pres.author = 'TFV-ify Dictator Engine';
 
-            const COLORS = {
-                darkBlue: '141E64', blue: '2A419A', tangerine: 'F58220', yellow: 'FFC543',
-                bgLight: 'F8FAFC', textMain: '1E293B', textMuted: '475569', white: 'FFFFFF', gray: 'CBD5E1'
-            };
-            const FONTS = { serif: 'Georgia', sans: 'Arial' };
+        // --- THE ALCHEMY v5.0: UNIVERSAL SPATIAL ENGINE ---
+        // This converts screen pixels inside the iframe into PowerPoint inches (96 DPI)
+        const PX_TO_INCH = 1 / 96;
 
-            const parser = new DOMParser();
-            const virtualDom = parser.parseFromString(editor.getValue(), 'text/html');
-            const slides = virtualDom.querySelectorAll('.slide-container');
+        function rgbToHex(rgb) {
+            let sep = rgb.indexOf(",") > -1 ? "," : " ";
+            let rgba = rgb.substr(4).split(")")[0].split(sep);
+            if(rgba.length < 3) return null;
+            let r = (+rgba[0]).toString(16), g = (+rgba[1]).toString(16), b = (+rgba[2]).toString(16);
+            if (r.length == 1) r = "0" + r;
+            if (g.length == 1) g = "0" + g;
+            if (b.length == 1) b = "0" + b;
+            return (r + g + b).toUpperCase();
+        }
 
-            if(slides.length === 0) return alert("No <div class='slide-container'> found!");
+        btnExport.addEventListener('click', async () => {
+            try {
+                btnExport.disabled = true;
+                exportStatus.classList.remove('hidden');
 
-            slides.forEach((htmlSlide, index) => {
-                let slide = pres.addSlide();
-                
-                // --- SLIDE 1: TITLE ---
-                if (htmlSlide.querySelector('.title-layout')) {
-                    slide.background = { color: COLORS.darkBlue };
-                    let title = htmlSlide.querySelector('h1')?.innerText || '';
-                    let sub = htmlSlide.querySelector('.subtitle')?.innerText || '';
-                    slide.addText(title, { x: 1, y: 2.8, w: 11.33, h: 1.5, fontSize: 60, fontFace: FONTS.serif, bold: true, color: COLORS.white, align: 'center' });
-                    slide.addText(sub, { x: 1, y: 4.2, w: 11.33, h: 1, fontSize: 22, fontFace: FONTS.sans, color: COLORS.yellow, align: 'center' });
-                    return;
-                }
-                
-                // --- SLIDE 11: BREAK ---
-                if (htmlSlide.querySelector('.section-title-layout')) {
-                    slide.background = { color: COLORS.blue };
-                    let title = htmlSlide.querySelector('h2')?.innerText || '';
-                    let sub = htmlSlide.querySelector('p')?.innerText || '';
-                    slide.addText(title, { x: 1, y: 3.0, w: 11.33, h: 1.5, fontSize: 60, fontFace: FONTS.serif, bold: true, color: COLORS.white, align: 'center' });
-                    slide.addText(sub, { x: 1, y: 4.5, w: 11.33, h: 1, fontSize: 22, fontFace: FONTS.sans, color: COLORS.yellow, align: 'center' });
+                let pres = new PptxGenJS();
+                pres.defineLayout({ name: 'TFV_WIDE', width: 13.33, height: 7.5 });
+                pres.layout = 'TFV_WIDE'; 
+                pres.author = 'TFV-ify Universal Engine';
+
+                // We extract layout data straight from the rendered iframe DOM!
+                const doc = previewFrame.contentWindow.document;
+                const slides = doc.querySelectorAll('.slide-container, .slide');
+
+                if(slides.length === 0) {
+                    alert("No <div class='slide-container'> or <div class='slide'> found!");
+                    btnExport.disabled = false;
+                    exportStatus.classList.add('hidden');
                     return;
                 }
 
-                slide.background = { color: COLORS.white };
-                
-                // --- COMMON HEADER ---
-                let titleEl = htmlSlide.querySelector('.slide-title');
-                if (titleEl) {
-                    // Remove nested spans/icons text if any
-                    let titleText = Array.from(titleEl.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim();
-                    if (!titleText) titleText = titleEl.innerText;
+                slides.forEach((htmlSlide) => {
+                    let pptSlide = pres.addSlide();
+                    let slideRect = htmlSlide.getBoundingClientRect();
                     
-                    if(htmlSlide.id !== 'slide15') { // Slide 15 title is centered differently
-                        slide.addText(titleText, { x: 0.6, y: 0.4, w: 12, h: 1, fontSize: 36, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue });
-                        slide.addShape(pres.ShapeType.rect, { x: 0.6, y: 1.3, w: 12, h: 0.04, fill: { color: COLORS.yellow } });
+                    // 1. Determine Background Color
+                    let slideBg = window.getComputedStyle(htmlSlide).backgroundColor;
+                    if (slideBg && slideBg !== 'rgba(0, 0, 0, 0)' && slideBg !== 'transparent') {
+                        pptSlide.background = { color: rgbToHex(slideBg) };
+                    } else {
+                        pptSlide.background = { color: 'FFFFFF' };
                     }
-                }
 
-                // --- SLIDE 2: ICEBREAKER ---
-                if (htmlSlide.id === 'slide2' || htmlSlide.querySelector('.six-grid')) {
-                    let prompt = htmlSlide.querySelector('h3')?.innerText || "";
-                    slide.addText(prompt, { x: 1, y: 1.6, w: 11.33, h: 0.8, fontSize: 24, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'center' });
+                    // 2. Iterate over EVERY node inside the slide to extract Shapes and Text
+                    // We only want leaf nodes (elements that actually contain the text, not their wrappers)
+                    const elements = htmlSlide.querySelectorAll('*');
                     
-                    let gridItems = htmlSlide.querySelectorAll('.image-tile p');
-                    let startX = 1.5, startY = 2.5, spX = 3.6, spY = 2.4;
-                    gridItems.forEach((p, i) => {
-                        let c = i % 3, r = Math.floor(i / 3);
-                        let x = startX + (c * spX), y = startY + (r * spY);
-                        // Draw gray placeholder instead of image to prevent cross-origin taint issues
-                        slide.addShape(pres.ShapeType.rect, { x: x, y: y, w: 3, h: 1.8, fill: { color: 'E2E8F0' } });
-                        slide.addText(p.innerText, { x: x, y: y + 1.85, w: 3, h: 0.4, fontSize: 16, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'center' });
-                    });
-                    return;
-                }
+                    elements.forEach(el => {
+                        let rect = el.getBoundingClientRect();
+                        // Ignore invisible elements or elements with zero size
+                        if (rect.width === 0 || rect.height === 0 || window.getComputedStyle(el).display === 'none') return;
+                        
+                        // Calculate relative position within the slide in inches
+                        let x = (rect.left - slideRect.left) * PX_TO_INCH;
+                        let y = (rect.top - slideRect.top) * PX_TO_INCH;
+                        let w = rect.width * PX_TO_INCH;
+                        let h = rect.height * PX_TO_INCH;
 
-                // --- SLIDE 3, 5, 14: TWO COLUMN TILED ---
-                if (htmlSlide.querySelector('.two-column.tiled')) {
-                    let cols = htmlSlide.querySelectorAll('.two-column.tiled > div');
-                    let xPositions = [0.8, 7.0];
-                    cols.forEach((col, i) => {
-                        let x = xPositions[i];
-                        slide.addShape(pres.ShapeType.roundRect, { x: x, y: 1.8, w: 5.5, h: 4.8, fill: { color: COLORS.bgLight }, line: { color: i===0?COLORS.blue:COLORS.yellow, width: 4 } });
+                        let computedStyles = window.getComputedStyle(el);
                         
-                        let y = 2.1;
-                        // Grab elements specifically to avoid mushing
-                        let headers = col.querySelectorAll('h3');
-                        let paras = col.querySelectorAll('p');
-                        let uls = col.querySelectorAll('ul');
+                        // --- EXTRACT SHAPES (Background boxes, borders, lines) ---
+                        let bgColor = computedStyles.backgroundColor;
+                        let hasBg = bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent';
+                        let hasBorder = computedStyles.borderBottomStyle !== 'none' || computedStyles.borderLeftStyle !== 'none';
                         
-                        if (headers.length > 0) {
-                            headers.forEach((h, idx) => {
-                                slide.addText(h.innerText, { x: x+0.4, y: y, w: 4.7, h: 0.5, fontSize: 24, fontFace: FONTS.serif, bold: true, color: COLORS.blue });
-                                y += 0.6;
-                                if (paras[idx]) {
-                                    let pText = paras[idx].innerText.replace(/\n/g, ' ');
-                                    slide.addText(pText, { x: x+0.4, y: y, w: 4.7, h: 0.8, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
-                                    y += 0.9;
-                                }
-                            });
+                        // If it has a background or border, AND it's a structural element (div, section), draw it.
+                        // We skip 'body' or the slide container itself.
+                        if ((hasBg || hasBorder) && (el.tagName === 'DIV' || el.tagName === 'HR') && el !== htmlSlide) {
+                            
+                            let shapeOpts = { x: x, y: y, w: w, h: h };
+                            
+                            if (hasBg) shapeOpts.fill = { color: rgbToHex(bgColor) };
+                            
+                            // Check for border-left (like your highlighted boxes)
+                            if (computedStyles.borderLeftStyle !== 'none') {
+                                let bColor = rgbToHex(computedStyles.borderLeftColor);
+                                let bWidth = parseFloat(computedStyles.borderLeftWidth) * PX_TO_INCH;
+                                // Draw a tiny rectangle to simulate the left border
+                                pptSlide.addShape(pres.ShapeType.rect, { x: x, y: y, w: bWidth, h: h, fill: { color: bColor } });
+                            }
+                            
+                            // Check for border-bottom (like your yellow slide title underline)
+                            if (computedStyles.borderBottomStyle !== 'none') {
+                                let bColor = rgbToHex(computedStyles.borderBottomColor);
+                                let bWidth = parseFloat(computedStyles.borderBottomWidth) * PX_TO_INCH;
+                                pptSlide.addShape(pres.ShapeType.rect, { x: x, y: y + h - bWidth, w: w, h: bWidth, fill: { color: bColor } });
+                            }
+
+                            // If it's a rounded box
+                            if (parseFloat(computedStyles.borderRadius) > 0) {
+                                pptSlide.addShape(pres.ShapeType.roundRect, shapeOpts);
+                            } else if (hasBg) {
+                                pptSlide.addShape(pres.ShapeType.rect, shapeOpts);
+                            }
                         }
+
+                        // --- EXTRACT TEXT ---
+                        // Only extract text if this element directly contains text nodes (no block children)
+                        let text = "";
+                        let isLeafText = false;
                         
-                        if (uls.length > 0) {
-                            let listItems = Array.from(uls[0].querySelectorAll('li')).map(li => ({
-                                text: li.innerText.replace(/[\n\r]+/g, ' ').trim() + '\n',
-                                options: { bullet: true, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain }
-                            }));
-                            slide.addText(listItems, { x: x+0.4, y: y, w: 4.7, h: 2.5, valign: 'top' });
+                        // We extract text for standard text tags, OR divs that have direct text content
+                        const textTags = ['H1', 'H2', 'H3', 'H4', 'P', 'LI', 'SPAN', 'STRONG', 'EM', 'I', 'B'];
+                        if (textTags.includes(el.tagName)) {
+                            isLeafText = true;
+                            text = el.innerText.trim();
+                        }
+
+                        if (isLeafText && text.length > 0) {
+                            // Map Font properties
+                            let fontSizePx = parseFloat(computedStyles.fontSize);
+                            let fontSizePt = fontSizePx * 0.75; // Convert px to pt
+                            let fontFace = computedStyles.fontFamily.includes('Bitter') || computedStyles.fontFamily.includes('serif') ? 'Georgia' : 'Arial';
+                            let fontColor = rgbToHex(computedStyles.color) || '000000';
+                            let bold = parseInt(computedStyles.fontWeight) > 500 || computedStyles.fontWeight === 'bold';
+                            let align = computedStyles.textAlign;
+                            
+                            let textOpts = {
+                                x: x, y: y, w: w + 0.1, h: h + 0.1, // Slight buffer to prevent PPTX line wrapping
+                                fontSize: fontSizePt,
+                                fontFace: fontFace,
+                                color: fontColor,
+                                bold: bold,
+                                align: align,
+                                valign: 'top',
+                                margin: 0,
+                                wrap: true
+                            };
+
+                            if (el.tagName === 'LI') {
+                                textOpts.bullet = true;
+                                // Indent bullet text slightly
+                                textOpts.x += 0.2;
+                                textOpts.w -= 0.2;
+                            }
+
+                            pptSlide.addText(text, textOpts);
                         }
                     });
-                    return;
-                }
-
-                // --- SLIDE 4: ELICITATION ---
-                if (htmlSlide.id === 'slide4' || (htmlSlide.querySelector('.elicitation-layout') && htmlSlide.id !== 'slide15')) {
-                    let h1 = htmlSlide.querySelector('h1')?.innerText || '';
-                    let sub = htmlSlide.querySelector('.subtitle-box')?.innerText || '';
-                    slide.addText(h1, { x: 1, y: 2.5, w: 11.33, h: 1, fontSize: 55, fontFace: FONTS.sans, color: COLORS.textMain, align: 'center' });
-                    slide.addShape(pres.ShapeType.rect, { x: 2, y: 3.8, w: 9.33, h: 1.5, fill: { type: 'none' }, line: { color: COLORS.gray, width: 2, dashType: 'dash' } });
-                    slide.addText(sub, { x: 2, y: 4.3, w: 9.33, h: 1, fontSize: 24, fontFace: FONTS.sans, color: COLORS.textMuted, align: 'center' });
-                    return;
-                }
-
-                // --- SLIDE 6: GIST READING (MCQ) ---
-                if (htmlSlide.querySelector('.mcq-options')) {
-                    let h3 = htmlSlide.querySelector('h3')?.innerText || '';
-                    let p = htmlSlide.querySelector('p')?.innerText || '';
-                    slide.addText(h3, { x: 1, y: 1.8, w: 11.33, h: 0.8, fontSize: 28, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'center' });
-                    slide.addText(p, { x: 1, y: 2.4, w: 11.33, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.tangerine, bold: true, align: 'center' });
-                    
-                    let opts = htmlSlide.querySelectorAll('.mcq-option');
-                    let yPos = [3.2, 4.3, 5.4];
-                    opts.forEach((opt, i) => {
-                        let y = yPos[i];
-                        let letter = opt.querySelector('.letter')?.innerText || '';
-                        let text = opt.lastElementChild?.innerText || '';
-                        
-                        slide.addShape(pres.ShapeType.roundRect, { x: 2.0, y: y, w: 9.33, h: 0.9, fill: { color: COLORS.bgLight }, line: { color: 'E2E8F0', width: 2 } });
-                        slide.addShape(pres.ShapeType.oval, { x: 2.3, y: y + 0.15, w: 0.6, h: 0.6, fill: { color: COLORS.white } });
-                        slide.addText(letter, { x: 2.3, y: y + 0.15, w: 0.6, h: 0.6, fontSize: 20, fontFace: FONTS.serif, bold: true, color: COLORS.tangerine, align: 'center' });
-                        slide.addText(text, { x: 3.2, y: y + 0.25, w: 8.0, h: 0.5, fontSize: 20, fontFace: FONTS.sans, color: COLORS.textMain });
-                    });
-                    return;
-                }
-
-                // --- SLIDE 7: TFNG INSTRUCTIONS ---
-                if (htmlSlide.id === 'slide7' || htmlSlide.querySelector('.highlight-numbers-layout')) {
-                    slide.addText("⚖️", { x: 1.5, y: 2.5, w: 3, h: 3, fontSize: 100, fontFace: FONTS.sans, align: 'center' });
-                    slide.addText("TRUE", { x: 5, y: 2.0, w: 7, h: 0.5, fontSize: 22, fontFace: FONTS.sans, bold: true, color: '10B981' });
-                    slide.addText("The text gives the same idea as the statement.", { x: 5, y: 2.4, w: 7, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
-                    slide.addText("FALSE", { x: 5, y: 3.5, w: 7, h: 0.5, fontSize: 22, fontFace: FONTS.sans, bold: true, color: 'EF4444' });
-                    slide.addText("The text gives the opposite idea to the statement.", { x: 5, y: 3.9, w: 7, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
-                    slide.addText("NOT GIVEN", { x: 5, y: 5.0, w: 7, h: 0.5, fontSize: 22, fontFace: FONTS.sans, bold: true, color: '64748B' });
-                    slide.addText("The information in the statement is not stated in the text.", { x: 5, y: 5.4, w: 7, h: 0.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
-                    return;
-                }
-
-                // --- SLIDE 13: MODEL TEXT ---
-                if (htmlSlide.id === 'slide13' || htmlSlide.querySelector('.model-text-layout')) {
-                    slide.addText("Model text", { x: 0.5, y: 1.8, w: 3.5, h: 0.8, fontSize: 40, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue });
-                    slide.addText("Read the output model.\n\nIndividual • 3 min • Notice", { x: 0.5, y: 2.8, w: 3.5, h: 1, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMuted });
-                    slide.addShape(pres.ShapeType.roundRect, { x: 4.0, y: 1.0, w: 8.5, h: 6.0, fill: { color: 'EEF2F6' } });
-                    
-                    let pText = htmlSlide.querySelector('.model-text-content div p')?.innerText || "";
-                    slide.addText(pText, { x: 4.5, y: 1.3, w: 7.5, h: 3.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain, lineSpacing: 24 });
-                    
-                    let qText = Array.from(htmlSlide.querySelectorAll('.model-text-questions p')).map(p=>p.innerText).join('\n');
-                    slide.addText(qText, { x: 4.5, y: 5.0, w: 7.5, h: 1.5, fontSize: 16, fontFace: FONTS.sans, color: COLORS.darkBlue, bold: true });
-                    return;
-                }
-
-                // --- SLIDE 15: HOMEWORK ---
-                if (htmlSlide.id === 'slide15') {
-                    let title = htmlSlide.querySelector('h2')?.innerText || '';
-                    let sub = htmlSlide.querySelector('.elicitation-layout > p')?.innerText || '';
-                    slide.addText(title, { x: 1, y: 1.0, w: 11.33, h: 0.8, fontSize: 40, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue, align: 'center' });
-                    slide.addText(sub, { x: 1, y: 1.8, w: 11.33, h: 0.6, fontSize: 22, fontFace: FONTS.sans, bold: true, color: COLORS.blue, align: 'center' });
-                    
-                    slide.addShape(pres.ShapeType.roundRect, { x: 2, y: 3.0, w: 9.33, h: 3.5, fill: { color: COLORS.bgLight } });
-                    slide.addShape(pres.ShapeType.rect, { x: 2, y: 3.0, w: 0.1, h: 3.5, fill: { color: COLORS.tangerine } });
-                    
-                    slide.addText("Homework Task:", { x: 2.5, y: 3.4, w: 8, h: 0.5, fontSize: 20, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
-                    
-                    let hwDesc = htmlSlide.querySelectorAll('.elicitation-layout div p');
-                    if (hwDesc.length >= 2) {
-                        slide.addText(hwDesc[0].innerText, { x: 2.5, y: 4.0, w: 8, h: 1.5, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
-                        slide.addText(hwDesc[1].innerText, { x: 2.5, y: 5.5, w: 8, h: 0.5, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMuted });
-                    }
-                    return;
-                }
-
-                // --- FALLBACK (Slide 8, 9, 10, 12) ---
-                let curY = 2.5;
-                let isCentered = htmlSlide.id === 'slide8' || htmlSlide.id === 'slide9' || htmlSlide.id === 'slide12';
-                let alignOpt = isCentered ? 'center' : 'left';
-                let xPos = isCentered ? 1.0 : 1.5;
-                let wSize = isCentered ? 11.33 : 10.33;
-
-                let headers = htmlSlide.querySelectorAll('h3');
-                if (headers.length > 0) {
-                    slide.addText(headers[0].innerText, { x: xPos, y: curY, w: wSize, h: 0.8, fontSize: 32, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: alignOpt });
-                    curY += 1.0;
-                }
-
-                let paras = htmlSlide.querySelectorAll('.content-area > div > p');
-                paras.forEach(p => {
-                    let isOrange = p.style?.color?.includes('tangerine') || false;
-                    let pText = p.innerText.replace(/\n/g, ' ');
-                    slide.addText(pText, { x: xPos, y: curY, w: wSize, h: 1.0, fontSize: 22, fontFace: FONTS.sans, color: isOrange ? COLORS.tangerine : COLORS.textMain, bold: isOrange, align: alignOpt });
-                    curY += 1.2;
                 });
 
-                let uls = htmlSlide.querySelectorAll('.content-area ul');
-                if (uls.length > 0) {
-                    let listItems = Array.from(uls[0].querySelectorAll('li')).map(li => ({
-                        text: li.innerText.replace(/[\n\r]+/g, ' ').trim() + '\n',
-                        options: { bullet: true, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain }
-                    }));
-                    slide.addText(listItems, { x: xPos + 0.5, y: curY - 0.5, w: wSize - 0.5, h: 3.0, valign: 'top' });
-                }
-            });
-
-            pres.writeFile({ fileName: `TFV_Export_Flawless_${new Date().getTime()}.pptx` })
-                .then(fileName => { console.log(`Successfully exported: ${fileName}`); })
-                .catch(err => { alert("Error exporting PPTX."); });
+                await pres.writeFile({ fileName: `TFV_Export_Universal_${new Date().getTime()}.pptx` });
+                
+                exportStatus.innerText = "Export Complete!";
+                setTimeout(() => exportStatus.classList.add('hidden'), 3000);
+            } catch (error) {
+                console.error(error);
+                alert("A fatal error occurred during the universal extraction. Check console.");
+            } finally {
+                btnExport.disabled = false;
+            }
         });
     </script>
 </body>
