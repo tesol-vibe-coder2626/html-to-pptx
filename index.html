@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TFV-ify | The Guerrilla Slide Generator v2.0</title>
+    <title>TFV-ify | The Guerrilla Slide Generator v3.0</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,8 +20,6 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #E2E8F0; }
-        h1, h2, h3, .font-bitter { font-family: 'Bitter', serif; }
-        
         .tfv-blue { background-color: #2A419A; }
         .tfv-dark-blue { background-color: #141E64; }
         .tfv-tangerine { background-color: #F58220; }
@@ -39,9 +37,9 @@
     <!-- Navbar -->
     <header class="tfv-dark-blue text-white p-4 flex justify-between items-center shadow-lg z-10">
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 tfv-tangerine rounded flex items-center justify-center font-bitter font-bold text-xl">T</div>
+            <div class="w-8 h-8 tfv-tangerine rounded flex items-center justify-center font-serif font-bold text-xl">T</div>
             <div>
-                <h1 class="text-xl font-bitter font-semibold tracking-wide">TFV-ify <span class="text-xs text-gray-300 font-inter font-normal ml-2">Bespoke Engine v2.0</span></h1>
+                <h1 class="text-xl font-serif font-semibold tracking-wide">TFV-ify <span class="text-xs text-gray-300 font-sans font-normal ml-2">Ironclad Sandbox v3.0</span></h1>
             </div>
         </div>
         <div class="flex gap-4">
@@ -55,89 +53,53 @@
 
     <!-- Main Workspace -->
     <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Column: The Code Editor -->
         <section class="w-1/2 flex flex-col border-r border-gray-300 bg-[#212121]">
             <div class="bg-gray-100 p-2 border-b border-gray-300 flex justify-between items-center text-sm text-gray-600 font-medium">
                 <span class="flex items-center gap-2"><svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg> HTML Source Code</span>
             </div>
             <div class="flex-1 relative">
-                <textarea id="html-input" class="hidden"><!-- Paste your full Culture and the Arts HTML here. --></textarea>
+                <textarea id="html-input" class="hidden"><!-- Paste your full HTML file here --></textarea>
             </div>
         </section>
 
-        <section class="w-1/2 bg-slate-200 flex flex-col relative overflow-y-auto p-8 items-center gap-8" id="preview-pane"></section>
+        <!-- Right Column: The Ironclad iframe Preview -->
+        <section class="w-1/2 bg-slate-200 relative p-0 m-0" id="preview-pane">
+            <iframe id="preview-frame" class="w-full h-full border-0 bg-white shadow-inner"></iframe>
+        </section>
     </main>
-
-    <div id="virtual-dom" style="display: none;"></div>
 
     <script>
         const htmlInput = document.getElementById('html-input');
-        const previewPane = document.getElementById('preview-pane');
-        const virtualDom = document.getElementById('virtual-dom');
         const btnUpdate = document.getElementById('btn-update');
         const btnExport = document.getElementById('btn-export');
+        const previewFrame = document.getElementById('preview-frame');
 
         const editor = CodeMirror.fromTextArea(htmlInput, {
             mode: "xml", theme: "material-darker", lineNumbers: true, lineWrapping: true, autoCloseTags: true
         });
 
-        // The Preview Renderer (Injects CSS to make the web preview look pretty)
+        // The Sandbox Renderer: Using an iframe prevents your CSS from destroying the app
         function updatePreview() {
-            virtualDom.innerHTML = editor.getValue();
-            previewPane.innerHTML = ''; 
-            const slides = virtualDom.querySelectorAll('.slide, .slide-container');
-            
-            if(slides.length === 0) {
-                previewPane.innerHTML = '<div class="text-gray-500 mt-20 text-center">No slides found.</div>';
-                return;
-            }
-
-            slides.forEach((slide, index) => {
-                const card = document.createElement('div');
-                card.className = 'w-full max-w-4xl bg-white shadow-lg border border-gray-200 relative overflow-hidden shrink-0 flex flex-col justify-center items-center';
-                card.style.aspectRatio = '16/9';
-                
-                const label = document.createElement('div');
-                label.className = 'absolute top-0 left-0 bg-gray-800 text-white text-xs px-2 py-1 rounded-br z-10';
-                label.innerText = `Slide ${index + 1}`;
-                card.appendChild(label);
-
-                const contentWrapper = document.createElement('div');
-                contentWrapper.className = 'w-full h-full p-8 overflow-hidden relative';
-                contentWrapper.innerHTML = slide.innerHTML;
-                
-                // Injecting CSS to simulate your original styling in the preview pane
-                const style = document.createElement('style');
-                style.innerHTML = `
-                    h1 { font-family: 'Bitter', serif; font-size: 3rem; color: #141E64; font-weight: 600; margin-bottom: 1rem; text-align: center; }
-                    .title-layout { background-color: #141E64; height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: absolute; top:0; left:0;}
-                    .title-layout h1 { color: white; }
-                    .title-layout .subtitle { color: #FFC543; font-size: 1.5rem; }
-                    h2.slide-title { font-family: 'Bitter', serif; font-size: 2.2rem; font-weight: 600; margin-bottom: 1.5rem; color: #141E64; border-bottom: 3px solid #FFC543; padding-bottom: 5px; width: 100%; }
-                    h3 { font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 600; color: #2A419A; margin-bottom: 0.5rem; }
-                    p, li { font-family: 'Inter', sans-serif; font-size: 1.1rem; color: #1E293B; margin-bottom: 0.5rem; line-height: 1.6; }
-                    .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; }
-                    .two-column.tiled > div { background-color: #F8FAFC; border-radius: 8px; border-left: 6px solid #2A419A; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-                    .section-title-layout { background-color: #2A419A; height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: absolute; top:0; left:0;}
-                    .section-title-layout h2 { color: white; border: none; font-size: 3rem;}
-                    .section-title-layout p { color: #FFC543; }
-                    .model-text-layout { display: grid; grid-template-columns: 3fr 7fr; gap: 40px; height: 100%; }
-                    .model-text-content { background-color: #EEF2F6; padding: 30px; border-radius: 8px; }
-                `;
-                contentWrapper.appendChild(style);
-                card.appendChild(contentWrapper);
-                previewPane.appendChild(card);
-            });
+            const doc = previewFrame.contentWindow.document;
+            doc.open();
+            doc.write(editor.getValue());
+            doc.close();
         }
 
         setTimeout(updatePreview, 100);
         btnUpdate.addEventListener('click', updatePreview);
         editor.on('change', () => { setTimeout(updatePreview, 1000); });
 
-        // --- THE ALCHEMY v2.0: THE BESPOKE ARCHITECT ---
+        // --- THE ALCHEMY v3.0: SURGICAL PARSER ---
         btnExport.addEventListener('click', () => {
             let pres = new PptxGenJS();
-            pres.layout = 'LAYOUT_16x9'; 
-            pres.author = 'TFV-ify Bespoke Generator';
+            
+            // FIX 1: Align coordinates exactly with the Python script (13.33 x 7.5)
+            pres.defineLayout({ name: 'TFV_WIDE', width: 13.33, height: 7.5 });
+            pres.layout = 'TFV_WIDE'; 
+            pres.author = 'TFV-ify Bespoke Engine';
 
             const COLORS = {
                 darkBlue: '141E64', blue: '2A419A', tangerine: 'F58220', yellow: 'FFC543',
@@ -145,17 +107,25 @@
             };
             const FONTS = { serif: 'Georgia', sans: 'Arial' };
 
-            virtualDom.innerHTML = editor.getValue();
+            // FIX 2: Use DOMParser to prevent CSS leaking during extraction
+            const parser = new DOMParser();
+            const virtualDom = parser.parseFromString(editor.getValue(), 'text/html');
             const slides = virtualDom.querySelectorAll('.slide, .slide-container');
 
-            if(slides.length === 0) return alert("No slides found!");
+            if(slides.length === 0) return alert("No slides found in the HTML!");
 
             slides.forEach((htmlSlide, index) => {
                 let slide = pres.addSlide();
                 
-                // 1. Detect Special Background Layouts
+                // Header (Skip for Title/Break slides later)
                 const isTitleLayout = htmlSlide.querySelector('.title-layout') !== null;
                 const isSectionBreak = htmlSlide.querySelector('.section-title-layout') !== null;
+
+                if (!isTitleLayout && !isSectionBreak) {
+                    slide.addText("Teach For Viet\nNam", { x: 0.5, y: 0.3, w: 2, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
+                    slide.addText("Brand\nGuideline", { x: 3.0, y: 0.3, w: 2, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
+                    slide.addText(`${index + 1}`, { x: 12.0, y: 0.3, w: 0.5, h: 0.5, fontSize: 10, fontFace: FONTS.sans, bold: true, color: COLORS.textMain, align: 'right' });
+                }
 
                 if (isTitleLayout) {
                     slide.background = { color: COLORS.darkBlue };
@@ -163,7 +133,7 @@
                     let sub = htmlSlide.querySelector('.subtitle')?.innerText || '';
                     slide.addText(title, { x: 1, y: 2.8, w: 11.33, h: 1.5, fontSize: 60, fontFace: FONTS.serif, bold: true, color: COLORS.white, align: 'center' });
                     slide.addText(sub, { x: 1, y: 4.2, w: 11.33, h: 1, fontSize: 22, fontFace: FONTS.sans, color: COLORS.yellow, align: 'center' });
-                    return; // Skip rest of processing for title slide
+                    return;
                 }
                 
                 if (isSectionBreak) {
@@ -175,59 +145,53 @@
                     return;
                 }
 
-                // Normal Content Slide Defaults
                 slide.background = { color: COLORS.white };
                 
-                // Standard Title Engine
                 let slideTitle = htmlSlide.querySelector('.slide-title');
                 if (slideTitle) {
-                    let titleText = slideTitle.innerText.replace('Recap & Homework', ''); // Clean up weird nested spans if any
+                    let titleText = slideTitle.innerText;
                     slide.addText(titleText, { x: 0.6, y: 0.4, w: 12, h: 1, fontSize: 36, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue });
                     slide.addShape(pres.ShapeType.rect, { x: 0.6, y: 1.3, w: 12, h: 0.04, fill: { color: COLORS.yellow } });
                 }
 
-                // 2. Detect Tiled Two-Column Layout (Slide 3, 5, 14)
+                // FIX 3: Robust Layout Extraction
                 let tiledColumns = htmlSlide.querySelector('.two-column.tiled');
                 if (tiledColumns) {
-                    let divs = tiledColumns.querySelectorAll(':scope > div'); // direct children
-                    let colWidth = 5.5;
-                    let xPositions = [0.8, 7.0];
-                    
-                    divs.forEach((col, i) => {
-                        if (i > 1) return; // Only support 2 cols
-                        let x = xPositions[i];
-                        // Draw Background Box
-                        slide.addShape(pres.ShapeType.roundRect, { x: x, y: 1.8, w: colWidth, h: 4.5, fill: { color: COLORS.bgLight }, line: { color: i===0?COLORS.blue:COLORS.yellow, width: 4 } });
+                    let cols = Array.from(tiledColumns.children).filter(c => c.tagName.toLowerCase() === 'div');
+                    cols.forEach((col, i) => {
+                        let xBase = i === 0 ? 0.8 : 7.0;
+                        slide.addShape(pres.ShapeType.roundRect, { x: xBase, y: 1.8, w: 5.5, h: 4.8, fill: { color: COLORS.bgLight }, line: { color: i===0?COLORS.blue:COLORS.yellow, width: 4 } });
                         
                         let curY = 2.1;
-                        col.querySelectorAll('h3, p, li').forEach(el => {
+                        Array.from(col.children).forEach(el => {
                             let text = el.innerText.trim();
                             let tag = el.tagName.toLowerCase();
+                            if(!text && tag !== 'ul') return;
+
                             if (tag === 'h3') {
-                                slide.addText(text, { x: x+0.4, y: curY, w: colWidth-0.8, h: 0.5, fontSize: 22, fontFace: FONTS.serif, bold: true, color: COLORS.blue });
+                                slide.addText(text, { x: xBase+0.4, y: curY, w: 4.7, h: 0.5, fontSize: 22, fontFace: FONTS.serif, bold: true, color: COLORS.blue, valign: 'top' });
                                 curY += 0.6;
                             } else if (tag === 'p') {
                                 let ht = Math.max(0.4, (text.length/40)*0.2);
-                                slide.addText(text, { x: x+0.4, y: curY, w: colWidth-0.8, h: ht, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMain });
+                                slide.addText(text, { x: xBase+0.4, y: curY, w: 4.7, h: ht, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMain, valign: 'top' });
                                 curY += ht + 0.1;
-                            } else if (tag === 'li') {
-                                let ht = Math.max(0.3, (text.length/40)*0.2);
-                                slide.addText(text, { x: x+0.5, y: curY, w: colWidth-1.0, h: ht, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMain, bullet: true });
-                                curY += ht + 0.05;
+                            } else if (tag === 'ul' || tag === 'ol') {
+                                // FIX 4: Group list items so Google Slides doesn't panic and stack them
+                                let lis = Array.from(el.querySelectorAll('li'));
+                                let listItems = lis.map(li => ({ text: li.innerText.trim() + '\n', options: { bullet: true, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMain } }));
+                                let ht = Math.max(0.5, lis.length * 0.4);
+                                slide.addText(listItems, { x: xBase+0.5, y: curY, w: 4.6, h: ht, valign: 'top' });
+                                curY += ht + 0.1;
                             }
                         });
                     });
                     return;
                 }
 
-                // 3. Detect Model Text Layout (Slide 13)
                 let modelLayout = htmlSlide.querySelector('.model-text-layout');
                 if (modelLayout) {
-                    // Left Sidebar
                     slide.addText("Model text", { x: 0.5, y: 1.8, w: 3.5, h: 0.8, fontSize: 40, fontFace: FONTS.serif, bold: true, color: COLORS.darkBlue });
                     slide.addText("Read the output model.\n\nIndividual • 3 min • Notice", { x: 0.5, y: 2.8, w: 3.5, h: 1, fontSize: 16, fontFace: FONTS.sans, color: COLORS.textMuted });
-                    
-                    // Right Box
                     slide.addShape(pres.ShapeType.roundRect, { x: 4.0, y: 1.5, w: 8.5, h: 5.5, fill: { color: 'EEF2F6' }, line: { type: 'none' } });
                     
                     let pText = modelLayout.querySelector('.model-text-content div p')?.innerText || "";
@@ -238,23 +202,21 @@
                     return;
                 }
 
-                // 4. Fallback Generic Parser for remaining slides (Icebreaker, Elicitation, Peer Check, etc.)
+                // Fallback for linear content
                 let currentY = 1.8;
                 let isCentered = htmlSlide.querySelector('.elicitation-layout, .mcq-options, .highlight-numbers-layout') !== null || htmlSlide.id === 'slide9' || htmlSlide.id === 'slide12' || htmlSlide.id === 'slide8';
                 
-                // Exclude the slide title which we already drew
-                const elements = Array.from(htmlSlide.querySelectorAll('h1, h2:not(.slide-title), h3, p, li, .mcq-option'));
+                const elements = Array.from(htmlSlide.querySelectorAll('h1, h2:not(.slide-title), h3, p, ul, .mcq-option'));
                 
                 elements.forEach(el => {
                     let text = el.innerText.trim();
-                    if(!text) return;
                     let tag = el.tagName.toLowerCase();
                     let alignOpt = isCentered ? 'center' : 'left';
                     let xPos = isCentered ? 1.0 : 1.5;
                     let wSize = isCentered ? 11.33 : 10.33;
+                    if(!text && tag !== 'ul') return;
 
                     if (el.classList.contains('mcq-option')) {
-                        // Special handling for MCQ boxes
                         slide.addShape(pres.ShapeType.roundRect, { x: 2.0, y: currentY, w: 9.33, h: 0.9, fill: { color: COLORS.bgLight }, line: { color: 'E2E8F0', width: 2 } });
                         let letter = el.querySelector('.letter')?.innerText || 'A';
                         let optText = el.lastElementChild?.innerText || text;
@@ -273,27 +235,20 @@
                         currentY += 0.7;
                     } else if (tag === 'p') {
                         let hEst = Math.max(0.4, (text.length / 80) * 0.25);
-                        let isOrange = el.style.color.includes('var(--tfv-tangerine)');
+                        let isOrange = el.style?.color?.includes('var(--tfv-tangerine)') || false;
                         slide.addText(text, { x: xPos, y: currentY, w: wSize, h: hEst, fontSize: 20, fontFace: FONTS.sans, color: isOrange ? COLORS.tangerine : COLORS.textMain, align: alignOpt });
                         currentY += hEst + 0.2;
-                    } else if (tag === 'li') {
-                        let hEst = Math.max(0.3, (text.length / 80) * 0.25);
-                        slide.addText(text, { x: xPos + 0.5, y: currentY, w: wSize - 0.5, h: hEst, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain, bullet: true });
+                    } else if (tag === 'ul') {
+                        let lis = Array.from(el.querySelectorAll('li'));
+                        let listItems = lis.map(li => ({ text: li.innerText.trim() + '\n', options: { bullet: true, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain } }));
+                        let hEst = Math.max(0.5, lis.length * 0.4);
+                        slide.addText(listItems, { x: xPos + 0.5, y: currentY, w: wSize - 0.5, h: hEst, valign: 'top' });
                         currentY += hEst + 0.1;
                     }
                 });
-
-                // Hack for Homework Box on slide 15
-                if (htmlSlide.id === 'slide15') {
-                    slide.addShape(pres.ShapeType.roundRect, { x: 2, y: 4.5, w: 9.33, h: 2.5, fill: { color: COLORS.bgLight } });
-                    slide.addShape(pres.ShapeType.rect, { x: 2, y: 4.5, w: 0.1, h: 2.5, fill: { color: COLORS.tangerine } });
-                    slide.addText("Homework Task:", { x: 2.5, y: 4.7, w: 8, h: 0.5, fontSize: 20, fontFace: FONTS.sans, bold: true, color: COLORS.textMain });
-                    slide.addText("Write an individual paragraph explaining the advantages of the course, but choose a different target audience than your group used today.", { x: 2.5, y: 5.2, w: 8, h: 1.0, fontSize: 18, fontFace: FONTS.sans, color: COLORS.textMain });
-                }
-
             });
 
-            pres.writeFile({ fileName: `TFV_Export_Bespoke_${new Date().getTime()}.pptx` })
+            pres.writeFile({ fileName: `TFV_Export_Ironclad_${new Date().getTime()}.pptx` })
                 .then(fileName => { console.log(`Successfully exported: ${fileName}`); })
                 .catch(err => { alert("Error exporting PPTX."); });
         });
